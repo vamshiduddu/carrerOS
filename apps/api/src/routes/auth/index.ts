@@ -6,12 +6,18 @@ import { loginRoute } from './login';
 import { logoutRoute } from './logout';
 import { refreshRoute } from './refresh';
 import { registerRoute } from './register';
+import { forgotPasswordRoute } from './forgot-password';
+import { resetPasswordRoute } from './reset-password';
+import { verifyEmailRoute } from './verify-email';
 
 export async function authRoutes(app: FastifyInstance) {
 	await registerRoute(app);
 	await loginRoute(app);
 	await refreshRoute(app);
 	await logoutRoute(app);
+	await forgotPasswordRoute(app);
+	await resetPasswordRoute(app);
+	await verifyEmailRoute(app);
 
 	app.get('/me', async (request, reply) => {
 		const token = getBearerToken(request.headers.authorization);

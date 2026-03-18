@@ -15,9 +15,13 @@ model User {
   fullName           String
   timezone           String   @default("UTC")
   locale             String   @default("en")
-  onboardingComplete Boolean  @default(false)
-  onboardingStep     Int      @default(0)
-  createdAt          DateTime @default(now())
+  onboardingComplete   Boolean   @default(false)
+  onboardingStep       Int       @default(0)
+  emailVerifyToken     String?
+  emailVerifyExpires   DateTime?
+  passwordResetToken   String?
+  passwordResetExpires DateTime?
+  createdAt            DateTime  @default(now())
   updatedAt          DateTime @updatedAt
 }
 

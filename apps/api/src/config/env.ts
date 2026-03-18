@@ -16,7 +16,9 @@ const envSchema = z.object({
 	TOGETHER_API_KEY: z.string().optional(),
 	MISTRAL_API_KEY: z.string().optional(),
 	GEMINI_API_KEY: z.string().optional(),
-	AZURE_OPENAI_API_KEY: z.string().optional()
+	AZURE_OPENAI_API_KEY: z.string().optional(),
+	RESEND_API_KEY: z.string().optional(),
+	RESEND_FROM: z.string().optional()
 });
 
 export const env = envSchema.parse(process.env);

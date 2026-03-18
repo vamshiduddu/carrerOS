@@ -9,6 +9,13 @@ import { ArrowLeft, Mic, MicOff, Send, Sparkles, Radio, User } from 'lucide-reac
 type Session = { id: string; title: string; status: string; interviewType: string };
 type Turn = { id: string; role: string; content: string; createdAt?: string };
 
+declare global {
+  interface Window {
+    SpeechRecognition: new () => SpeechRecognition;
+    webkitSpeechRecognition: new () => SpeechRecognition;
+  }
+}
+
 export default function Page() {
   const params = useParams<{ id: string }>();
   const [session, setSession] = useState<Session | null>(null);
@@ -17,6 +24,7 @@ export default function Page() {
   const [loading, setLoading] = useState(false);
   const [recording, setRecording] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
 
   async function load() {
     const [sessionData, turnsData] = await Promise.all([
@@ -29,22 +37,53 @@ export default function Page() {
 
   useEffect(() => { load(); }, [params.id]);
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [turns]);
+  useEffect(() => { return () => { recognitionRef.current?.stop(); }; }, []);
 
   async function start() {
     await api.post(`/v1/interviews/${params.id}/start`, {});
     await load();
   }
 
+  function toggleRecording() {
+    if (recording) {
+      recognitionRef.current?.stop();
+      setRecording(false);
+      return;
+    }
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { alert('Speech recognition not supported. Use Chrome or Edge.'); return; }
+    const recognition = new SR();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
+    recognition.onresult = (event) => {
+      let final = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        if (event.results[i].isFinal) final += event.results[i][0].transcript;
+      }
+      if (final.trim()) setInput(prev => prev + (prev ? ' ' : '') + final.trim());
+    };
+    recognition.onend = () => setRecording(false);
+    recognitionRef.current = recognition;
+    recognition.start();
+    setRecording(true);
+  }
+
   async function sendMessage() {
-    if (!input.trim()) return;
-    const userTurn: Turn = { id: `temp-${Date.now()}`, role: 'user', content: input };
+    if (!input.trim() || loading) return;
+    const content = input.trim();
+    const userTurn: Turn = { id: `temp-${Date.now()}`, role: 'user', content };
     setTurns(prev => [...prev, userTurn]);
     setInput('');
     setLoading(true);
     try {
-      const result = await api.post<{ turn: Turn }>(`/v1/interviews/${params.id}/turns`, { content: input });
-      await load();
-    } catch { /* silent */ }
+      const result = await api.post<{ turn: Turn; reply: Turn | null }>(`/v1/interviews/${params.id}/turns`, { role: 'user', content });
+      if (result.reply) {
+        setTurns(prev => [...prev.filter(t => t.id !== userTurn.id), result.turn ?? userTurn, result.reply!]);
+      } else {
+        await load();
+      }
+    } catch { await load(); }
     finally { setLoading(false); }
   }
 
@@ -126,8 +165,8 @@ export default function Page() {
           <div style={{ padding: '0.9rem', borderTop: '1px solid var(--line-solid)', display: 'flex', gap: '0.5rem' }}>
             <button
               className={`btn btn-icon ${recording ? 'btn-danger' : 'btn-secondary'}`}
-              onClick={() => setRecording(!recording)}
-              title={recording ? 'Stop recording' : 'Start recording'}
+              onClick={toggleRecording}
+              title={recording ? 'Stop recording' : 'Start voice input'}
             >
               {recording ? <MicOff size={16} /> : <Mic size={16} />}
             </button>

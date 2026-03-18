@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx prisma:*)",
+      "Bash(DATABASE_URL=\"postgresql://postgres:password@localhost:5432/careeros\" npx prisma migrate dev --name init)",
+      "Bash(DATABASE_URL=\"postgresql://postgres:root@localhost:5432/careeros\" npx prisma migrate dev --name init)",
+      "Bash(npm install:*)",
+      "Bash(netstat -ano)",
+      "Bash(tasklist:*)",
+      "Bash(powershell \"Get-Process -Id 14404 | Select-Object Name, Id, Path\")",
+      "Bash(powershell \"Stop-Process -Id 14404 -Force\")",
+      "Bash(powershell -Command \"Get-NetTCPConnection -LocalPort 3000,3001 -State Listen | ForEach-Object { Stop-Process -Id \\\\$_.OwningProcess -Force; Write-Host \\('Killed PID ' + \\\\$_.OwningProcess + ' on port ' + \\\\$_.LocalPort\\) }\")",
+      "Bash(powershell -Command \"Get-NetTCPConnection -LocalPort 3001 -State Listen | ForEach-Object { Stop-Process -Id \\\\$_.OwningProcess -Force; Write-Host \\('Killed PID ' + \\\\$_.OwningProcess + ' on port 3001'\\) }\")",
+      "Bash(node scripts/kill-port.js 3000)",
+      "Bash(node scripts/kill-port.js 3001)"
+    ]
+  }
+}
