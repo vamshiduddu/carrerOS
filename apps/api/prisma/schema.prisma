@@ -1,0 +1,262 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email              String   @unique
+  emailVerified      Boolean  @default(false)
+  passwordHash       String?
+  fullName           String
+  timezone           String   @default("UTC")
+  locale             String   @default("en")
+  onboardingComplete Boolean  @default(false)
+  onboardingStep     Int      @default(0)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model OauthAccount {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String   @db.Uuid
+  provider    String
+  providerId  String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Session {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String   @db.Uuid
+  tokenHash  String   @unique
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+}
+
+model SubscriptionPlan {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name         String
+  displayName  String
+  priceMonthly Int
+  priceYearly  Int
+  features     Json
+  limits       Json
+  createdAt    DateTime @default(now())
+}
+
+model Subscription {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String   @unique @db.Uuid
+  planId      String   @db.Uuid
+  status      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model UsageRecord {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String   @db.Uuid
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model BillingEvent {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  stripeEventId String   @unique
+  eventType     String
+  data          Json
+  processed     Boolean  @default(false)
+  createdAt     DateTime @default(now())
+}
+
+model Resume {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String   @db.Uuid
+  title      String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model ResumeSection {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  resumeId   String   @db.Uuid
+  type       String
+  title      String
+  sortOrder  Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model ResumeItem {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  resumeId   String   @db.Uuid
+  sectionId  String   @db.Uuid
+  sortOrder  Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model ResumeKeyword {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  resumeId   String   @db.Uuid
+  keyword    String
+  createdAt  DateTime @default(now())
+}
+
+model ResumeVersion {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  resumeId   String   @db.Uuid
+  version    Int
+  snapshot   Json
+  createdAt  DateTime @default(now())
+}
+
+model JobListing {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  source     String
+  url        String
+  title      String
+  company    String
+  createdAt  DateTime @default(now())
+}
+
+model UserJobPreference {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String   @unique @db.Uuid
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model JobMatch {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String   @db.Uuid
+  jobId      String   @db.Uuid
+  matchScore Decimal  @db.Decimal(5, 2)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Application {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String   @db.Uuid
+  company    String
+  role       String
+  status     String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model ApplicationTimeline {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  applicationId String   @db.Uuid
+  userId        String   @db.Uuid
+  eventType     String
+  title         String
+  createdAt     DateTime @default(now())
+}
+
+model CoverLetter {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String   @db.Uuid
+  title      String
+  content    String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model InterviewSession {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId         String   @db.Uuid
+  title          String
+  interviewType  String
+  status         String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model InterviewTurn {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sessionId  String   @db.Uuid
+  role       String
+  content    String
+  createdAt  DateTime @default(now())
+}
+
+model MockInterviewSession {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String   @db.Uuid
+  status     String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model MockInterviewQuestion {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sessionId  String   @db.Uuid
+  question   String
+  createdAt  DateTime @default(now())
+}
+
+model QuestionBank {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  question   String
+  category   String
+  difficulty String
+  createdAt  DateTime @default(now())
+}
+
+model Notification {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String   @db.Uuid
+  type       String
+  title      String
+  body       String
+  isRead     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+}
+
+model UserSetting {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String   @unique @db.Uuid
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Reminder {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId        String   @db.Uuid
+  title         String
+  remindAt      DateTime
+  isSent        Boolean  @default(false)
+  createdAt     DateTime @default(now())
+}
+
+model AiRequest {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId           String   @db.Uuid
+  feature          String
+  model            String
+  promptTokens     Int
+  completionTokens Int
+  totalTokens      Int
+  costUsd          Decimal  @db.Decimal(10, 6)
+  success          Boolean  @default(true)
+  createdAt        DateTime @default(now())
+}
+
+model FileUpload {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId        String   @db.Uuid
+  storageKey    String
+  storageBucket String
+  originalName  String
+  mimeType      String
+  fileSize      Int
+  url           String
+  createdAt     DateTime @default(now())
+}

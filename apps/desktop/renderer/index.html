@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CareerOS Desktop Copilot</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="shell">
+
+      <!-- ─── Sidebar ─── -->
+      <aside class="sidebar">
+        <div class="sidebar-header">
+          <div class="logo">
+            <div class="logo-mark">C</div>
+            <span class="logo-text">Career<span>OS</span></span>
+          </div>
+          <div class="logo-subtitle">Desktop Copilot</div>
+        </div>
+
+        <div class="sidebar-body">
+
+          <!-- Server -->
+          <div class="block">
+            <div class="block-header">
+              <div class="block-icon">⚙</div>
+              <span class="block-title">Server</span>
+            </div>
+            <label class="field-label">API URL</label>
+            <input id="apiUrl" placeholder="http://localhost:3001" autocomplete="off" />
+          </div>
+
+          <!-- Auth -->
+          <div class="block">
+            <div class="block-header">
+              <div class="block-icon">🔐</div>
+              <span class="block-title">Authentication</span>
+            </div>
+            <label class="field-label">Email</label>
+            <input id="email" placeholder="you@example.com" autocomplete="email" />
+            <label class="field-label">Password</label>
+            <input id="password" type="password" placeholder="Password" autocomplete="current-password" />
+            <button id="loginBtn" class="primary" style="margin-top:10px">Sign In</button>
+            <div id="authState" class="auth-status unauthenticated">
+              <div class="auth-dot"></div>
+              Not authenticated
+            </div>
+          </div>
+
+          <!-- Model Gateway -->
+          <div class="block">
+            <div class="block-header">
+              <div class="block-icon">🧠</div>
+              <span class="block-title">AI Model</span>
+            </div>
+            <label class="field-label">Provider</label>
+            <select id="provider">
+              <option value="anthropic">Anthropic (Claude)</option>
+              <option value="openai">OpenAI (GPT)</option>
+              <option value="openrouter">OpenRouter</option>
+              <option value="groq">Groq</option>
+              <option value="openai-compatible">OpenAI-Compatible</option>
+            </select>
+            <label class="field-label">Model</label>
+            <input id="model" placeholder="claude-sonnet-4-6" />
+            <label class="field-label">API Key (optional)</label>
+            <input id="providerKey" type="password" placeholder="Leave blank if set in backend" autocomplete="off" />
+            <label class="field-label">Custom Base URL (optional)</label>
+            <input id="baseUrl" placeholder="https://your-provider/v1" autocomplete="off" />
+          </div>
+
+          <!-- System Prompt -->
+          <div class="block">
+            <div class="block-header">
+              <div class="block-icon">📝</div>
+              <span class="block-title">System Prompt</span>
+            </div>
+            <textarea id="systemPrompt" rows="4" placeholder="You are a focused career copilot helping with job applications and interview preparation..."></textarea>
+          </div>
+
+        </div>
+      </aside>
+
+      <!-- ─── Chat Panel ─── -->
+      <main class="chat-panel">
+        <div class="chat-header">
+          <div>
+            <h2 class="chat-header-title">AI Career Copilot</h2>
+            <p class="chat-header-sub">All requests routed through your CareerOS backend</p>
+          </div>
+          <div style="display:flex;gap:6px;align-items:center">
+            <span id="modelBadge" class="provider-chip">claude</span>
+            <button class="icon-btn" id="clearBtn" title="Clear conversation">✕</button>
+          </div>
+        </div>
+
+        <div id="messages" class="messages">
+          <!-- messages injected by app.js -->
+        </div>
+
+        <form id="composer" class="composer">
+          <textarea id="prompt" rows="3" placeholder="Ask anything about your job search, interview prep, resume bullets...&#10;⏎ Send · Shift+⏎ New line"></textarea>
+          <div class="composer-actions">
+            <span class="hint">⏎ to send</span>
+            <button type="button" class="secondary" id="clearBtn2">Clear</button>
+            <button type="submit" class="primary" style="width:auto;padding:8px 18px">Send →</button>
+          </div>
+        </form>
+      </main>
+
+    </div>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
