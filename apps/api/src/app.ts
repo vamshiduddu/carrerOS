@@ -14,7 +14,7 @@ export async function buildApp() {
 		allowedHeaders: ['Content-Type', 'Authorization', 'Accept']
 	});
 
-	app.get('/health', async () => ({ ok: true }));
+	app.get('/health', { logLevel: 'silent' }, async () => ({ ok: true }));
 
 	await registerRoutes(app);
 
