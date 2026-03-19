@@ -20,8 +20,5 @@
   "devDependencies": {
     "turbo": "^2.0.0",
     "typescript": "^5.6.3"
-  },
-  "dependencies": {
-    "@esbuild/win32-x64": "^0.27.4"
   }
 }
