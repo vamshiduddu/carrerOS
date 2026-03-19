@@ -1,61 +1,90 @@
 import { prisma } from '../config/database';
+import { fetchLiveJobsForPreferences } from './live-jobs.service';
 
 export function computeMatchScore(
-  jobTitle: string,
-  jobDescription: string,
-  userKeywords: string[]
+  job: { title: string; description?: string | null; tags: string[]; remote: boolean; jobType?: string | null },
+  prefs: { titles: string[]; keywords: string[]; remote: boolean; jobTypes: string[]; locations: string[] }
 ): number {
-  if (userKeywords.length === 0) return 0;
+  let score = 0;
+  const haystack = `${job.title} ${job.description ?? ''} ${job.tags.join(' ')}`.toLowerCase();
 
-  const haystack = `${jobTitle} ${jobDescription}`.toLowerCase();
-  let matched = 0;
-
-  for (const keyword of userKeywords) {
-    if (haystack.includes(keyword.toLowerCase())) {
-      matched++;
-    }
+  // Title match (up to 40 pts)
+  for (const t of prefs.titles) {
+    if (haystack.includes(t.toLowerCase())) { score += 40; break; }
   }
 
-  const ratio = matched / userKeywords.length;
-  return Math.round(ratio * 100);
+  // Keyword match (up to 40 pts)
+  if (prefs.keywords.length > 0) {
+    const matched = prefs.keywords.filter((k) => haystack.includes(k.toLowerCase())).length;
+    score += Math.round((matched / prefs.keywords.length) * 40);
+  }
+
+  // Remote match (10 pts)
+  if (prefs.remote && job.remote) score += 10;
+
+  // Job type match (10 pts)
+  if (prefs.jobTypes.length > 0 && job.jobType) {
+    if (prefs.jobTypes.some((t) => job.jobType!.toLowerCase().includes(t.toLowerCase()))) score += 10;
+  }
+
+  return Math.min(score, 100);
 }
 
+const DEFAULT_PREFS = {
+  titles: ['software engineer', 'frontend engineer', 'backend engineer', 'fullstack engineer'],
+  keywords: ['javascript', 'python', 'react', 'node'],
+  remote: false,
+  jobTypes: ['full-time'],
+  locations: ['USA', 'United States', 'New York', 'San Francisco', 'Remote']
+};
+
 export async function matchJobsForUser(userId: string): Promise<void> {
-  // Get all resumes for user
-  const resumes = await prisma.resume.findMany({
-    where: { userId },
-    select: { id: true }
-  });
+  const prefs = await prisma.userJobPreference.findUnique({ where: { userId } });
 
-  const resumeIds = resumes.map((r) => r.id);
+  const prefData = prefs && prefs.titles.length > 0 ? {
+    titles: prefs.titles,
+    keywords: prefs.keywords,
+    remote: prefs.remote,
+    jobTypes: prefs.jobTypes,
+    locations: prefs.locations
+  } : DEFAULT_PREFS;
 
-  // Get all keywords across user's resumes
-  const resumeKeywords = await prisma.resumeKeyword.findMany({
-    where: { resumeId: { in: resumeIds } },
-    select: { keyword: true }
-  });
+  // Fetch live jobs and upsert into DB
+  await fetchLiveJobsForPreferences(prefData);
 
-  const keywords = [...new Set(resumeKeywords.map((rk) => rk.keyword))];
-
-  const jobs = await prisma.jobListing.findMany();
+  // Score all jobs in DB
+  const jobs = await prisma.jobListing.findMany({ take: 200, orderBy: { createdAt: 'desc' } });
 
   for (const job of jobs) {
-    const score = computeMatchScore(job.title, '', keywords);
+    const score = computeMatchScore(
+      { title: job.title, description: job.description, tags: job.tags, remote: job.remote, jobType: job.jobType },
+      prefData
+    );
+    if (score === 0) continue;
 
-    const existing = await prisma.jobMatch.findFirst({
-      where: { userId, jobId: job.id },
-      select: { id: true }
+    await prisma.jobMatch.upsert({
+      where: { userId_jobId: { userId, jobId: job.id } },
+      create: { userId, jobId: job.id, matchScore: score },
+      update: { matchScore: score }
     });
-
-    if (existing) {
-      await prisma.jobMatch.update({
-        where: { id: existing.id },
-        data: { matchScore: score }
-      });
-    } else {
-      await prisma.jobMatch.create({
-        data: { userId, jobId: job.id, matchScore: score }
-      });
-    }
   }
+}
+
+// Called when preferences are updated — runs matching and returns top matches
+export async function refreshMatchesForUser(userId: string) {
+  await matchJobsForUser(userId);
+
+  const matches = await prisma.jobMatch.findMany({
+    where: { userId },
+    orderBy: { matchScore: 'desc' },
+    take: 50
+  });
+
+  const jobIds = matches.map((m) => m.jobId);
+  const jobs = await prisma.jobListing.findMany({ where: { id: { in: jobIds } } });
+  const jobMap = new Map(jobs.map((j) => [j.id, j]));
+
+  return matches
+    .map((m) => ({ ...m, matchScore: Number(m.matchScore), job: jobMap.get(m.jobId) ?? null }))
+    .filter((m) => m.job !== null);
 }

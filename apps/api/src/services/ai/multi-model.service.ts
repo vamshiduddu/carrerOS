@@ -30,7 +30,8 @@ const openAiLikeDefaults: Record<string, string> = {
   groq: 'https://api.groq.com/openai/v1',
   together: 'https://api.together.xyz/v1',
   mistral: 'https://api.mistral.ai/v1',
-  azure: 'https://your-resource.openai.azure.com/openai/deployments/your-deployment'
+  azure: 'https://your-resource.openai.azure.com/openai/deployments/your-deployment',
+  nvidia: 'https://integrate.api.nvidia.com/v1'
 };
 
 function getProviderKey(provider: string): string | undefined {
@@ -43,7 +44,8 @@ function getProviderKey(provider: string): string | undefined {
     together: env.TOGETHER_API_KEY,
     mistral: env.MISTRAL_API_KEY,
     gemini: env.GEMINI_API_KEY,
-    azure: env.AZURE_OPENAI_API_KEY
+    azure: env.AZURE_OPENAI_API_KEY,
+    nvidia: env.NVIDIA_API_KEY
   };
   return fromEnv[provider];
 }
@@ -62,6 +64,50 @@ async function callOpenAiCompatible(input: ChatInput): Promise<ChatResult> {
   const data = await response.json();
   if (!response.ok) throw new Error(data?.error?.message ?? `Provider request failed (${response.status})`);
   return { text: data?.choices?.[0]?.message?.content ?? '', usage: data?.usage ?? null, provider: input.provider, model: input.model };
+}
+
+async function callNvidia(input: ChatInput): Promise<ChatResult> {
+  const apiKey = input.apiKey ?? getProviderKey('nvidia');
+  if (!apiKey) throw new Error('Missing API key for provider: nvidia');
+
+  const response = await fetch('https://integrate.api.nvidia.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+      'Accept': 'text/event-stream'
+    },
+    body: JSON.stringify({
+      model: input.model,
+      messages: input.messages,
+      max_tokens: 16384,
+      temperature: input.temperature ?? 0.6,
+      top_p: 0.95,
+      stream: true,
+      chat_template_kwargs: { enable_thinking: false }
+    })
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as { error?: { message?: string } })?.error?.message ?? `NVIDIA request failed (${response.status})`);
+  }
+
+  // Read full SSE response as text, then parse all data: lines
+  const raw = await response.text();
+  let text = '';
+
+  for (const line of raw.split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith('data: ') || trimmed === 'data: [DONE]') continue;
+    try {
+      const chunk = JSON.parse(trimmed.slice(6));
+      const content = chunk?.choices?.[0]?.delta?.content;
+      if (content) text += content;
+    } catch { /* skip malformed chunk */ }
+  }
+
+  return { text, usage: null, provider: 'nvidia', model: input.model };
 }
 
 async function callGemini(input: ChatInput): Promise<ChatResult> {
@@ -126,11 +172,13 @@ export async function chatWithModel(input: ChatInput): Promise<ChatResult> {
 
   if (input.provider === 'anthropic') return callAnthropic(input);
   if (input.provider === 'gemini') return callGemini(input);
+  if (input.provider === 'nvidia') return callNvidia(input);
   return callOpenAiCompatible(input);
 }
 
 // Ordered fallback providers — tries each in sequence until one succeeds
 const FALLBACK_CHAIN: Array<{ provider: string; model: string; keyEnv: () => string | undefined }> = [
+  { provider: 'nvidia', model: 'qwen/qwen3.5-122b-a10b', keyEnv: () => env.NVIDIA_API_KEY },
   { provider: 'anthropic', model: 'claude-haiku-4-5-20251001', keyEnv: () => env.ANTHROPIC_API_KEY },
   { provider: 'openai', model: 'gpt-4o-mini', keyEnv: () => env.OPENAI_API_KEY },
   { provider: 'groq', model: 'llama-3.3-70b-versatile', keyEnv: () => env.GROQ_API_KEY },
@@ -186,6 +234,7 @@ export function listModelProviders() {
     { provider: 'azure', supportsCustomBaseUrl: true, models: ['gpt-4o', 'gpt-4o-mini'] },
     { provider: 'openrouter', supportsCustomBaseUrl: false, models: ['openai/gpt-4o-mini', 'anthropic/claude-3.5-sonnet'] },
     { provider: 'groq', supportsCustomBaseUrl: false, models: ['llama-3.3-70b-versatile', 'mixtral-8x7b-32768'] },
-    { provider: 'openai-compatible', supportsCustomBaseUrl: true, models: ['any-compatible-model'] }
+    { provider: 'openai-compatible', supportsCustomBaseUrl: true, models: ['any-compatible-model'] },
+    { provider: 'nvidia', supportsCustomBaseUrl: false, models: ['qwen/qwen3.5-122b-a10b', 'meta/llama-3.3-70b-instruct', 'nvidia/llama-3.1-nemotron-ultra-253b-v1'] }
   ];
 }

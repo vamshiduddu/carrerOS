@@ -50,13 +50,14 @@ export async function listSections(resumeId: string) {
 
 export async function createSection(
 	resumeId: string,
-	data: { type: string; title: string; sortOrder?: number }
+	data: { type: string; title: string; content?: string; sortOrder?: number }
 ) {
 	return prisma.resumeSection.create({
 		data: {
 			resumeId,
 			type: data.type,
 			title: data.title,
+			content: data.content,
 			sortOrder: data.sortOrder ?? 0
 		}
 	});
@@ -64,7 +65,7 @@ export async function createSection(
 
 export async function updateSection(
 	sectionId: string,
-	data: { title?: string; sortOrder?: number }
+	data: { title?: string; content?: string; sortOrder?: number }
 ) {
 	return prisma.resumeSection.update({
 		where: { id: sectionId },
@@ -88,18 +89,19 @@ export async function listItems(sectionId: string) {
 export async function createItem(
 	resumeId: string,
 	sectionId: string,
-	data: { sortOrder?: number }
+	data: { sortOrder?: number; content?: Record<string, unknown> }
 ) {
 	return prisma.resumeItem.create({
 		data: {
 			resumeId,
 			sectionId,
-			sortOrder: data.sortOrder ?? 0
+			sortOrder: data.sortOrder ?? 0,
+			...(data.content ? { content: data.content } : {})
 		}
 	});
 }
 
-export async function updateItem(itemId: string, data: { sortOrder?: number }) {
+export async function updateItem(itemId: string, data: { sortOrder?: number; content?: Record<string, unknown> }) {
 	return prisma.resumeItem.update({
 		where: { id: itemId },
 		data

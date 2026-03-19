@@ -17,6 +17,7 @@ const envSchema = z.object({
 	MISTRAL_API_KEY: z.string().optional(),
 	GEMINI_API_KEY: z.string().optional(),
 	AZURE_OPENAI_API_KEY: z.string().optional(),
+	NVIDIA_API_KEY: z.string().optional(),
 	RESEND_API_KEY: z.string().optional(),
 	RESEND_FROM: z.string().optional()
 });

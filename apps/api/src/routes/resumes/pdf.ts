@@ -1,129 +1,145 @@
 import type { FastifyInstance } from 'fastify';
+import PDFDocument from 'pdfkit';
 import { requireAuth } from '../../middleware/auth';
-import { getResumeById, listSections, listItems } from '../../services/resume.service';
+import { getResumeById, listSections } from '../../services/resume.service';
 
-function escapeHtml(str: string): string {
-	return str
-		.replace(/&/g, '&amp;')
-		.replace(/</g, '&lt;')
-		.replace(/>/g, '&gt;')
-		.replace(/"/g, '&quot;')
-		.replace(/'/g, '&#39;');
+const PAGE_MARGIN = 50;
+const TEXT_WIDTH = 595.28 - PAGE_MARGIN * 2; // A4 width minus margins
+
+// Parse a content block into structured entry lines
+// Expects lines like:
+//   "Title | Organization"          ← entry heading
+//   "Location | Jan 2020 – May 2022" ← meta line
+//   "• Bullet text"                  ← bullet
+//   "Plain paragraph text"           ← paragraph
+type LineKind = 'heading' | 'meta' | 'bullet' | 'paragraph';
+
+function classifyLine(line: string): LineKind {
+	if (/^[\*\-\•]/.test(line)) return 'bullet';
+	if (/\|\s*(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|\d{4})/i.test(line)) return 'meta';
+	if (/\|\s*\w/.test(line) && line.split('|').length === 2) return 'heading';
+	if (/^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|\d{4})/i.test(line)) return 'meta';
+	return 'paragraph';
 }
 
-function buildResumeHtml(
-	title: string,
-	sections: Array<{ id: string; type: string; title: string; sortOrder: number }>,
-	items: Array<{ id: string; sectionId: string; sortOrder: number }>
-): string {
-	const itemsBySectionId = new Map<string, typeof items>();
-	for (const item of items) {
-		const list = itemsBySectionId.get(item.sectionId) ?? [];
-		list.push(item);
-		itemsBySectionId.set(item.sectionId, list);
+function renderSectionContent(doc: PDFKit.PDFDocument, content: string) {
+	const lines = content.split('\n').map((l) => l.trim()).filter(Boolean);
+	if (lines.length === 0) return;
+
+	for (const line of lines) {
+		const kind = classifyLine(line);
+		const clean = line.replace(/^[\*\-\•]\s*/, '');
+
+		if (kind === 'heading') {
+			// "Role | Company" → left=Role bold, right=Company
+			const [left, right] = line.split('|').map((s) => s.trim());
+			doc.moveDown(0.15);
+			const rightWidth = doc.widthOfString(right ?? '');
+			doc.font('Helvetica-Bold').fontSize(10).fillColor('#000000')
+				.text(left, PAGE_MARGIN, doc.y, { continued: true, width: TEXT_WIDTH - rightWidth });
+			doc.font('Helvetica').fontSize(10).fillColor('#333333')
+				.text(right ?? '', { align: 'right' });
+		} else if (kind === 'meta') {
+			// "Location | Date" → left=Location italic, right=Date italic
+			const parts = line.split('|').map((s) => s.trim());
+			const [left, right] = parts.length === 2 ? parts : ['', parts[0]];
+			const rightWidth = doc.widthOfString(right ?? '');
+			doc.font('Helvetica-Oblique').fontSize(9).fillColor('#444444')
+				.text(left, PAGE_MARGIN, doc.y, { continued: true, width: TEXT_WIDTH - rightWidth });
+			doc.font('Helvetica-Oblique').fontSize(9).fillColor('#444444')
+				.text(right ?? '', { align: 'right' });
+			doc.moveDown(0.1);
+		} else if (kind === 'bullet') {
+			doc.font('Helvetica').fontSize(10).fillColor('#000000')
+				.text(`\u2022  ${clean}`, { indent: 12, lineGap: 2 });
+		} else {
+			doc.font('Helvetica').fontSize(10).fillColor('#000000')
+				.text(clean, { lineGap: 2 });
+		}
 	}
+}
 
-	const sectionsHtml = sections
-		.map((section) => {
-			const sectionItems = itemsBySectionId.get(section.id) ?? [];
-			const itemsHtml =
-				sectionItems.length > 0
-					? `<ul>${sectionItems
-							.map((i) => `<li>Item ${escapeHtml(i.id.slice(0, 8))}</li>`)
-							.join('')}</ul>`
-					: '<p><em>No items in this section.</em></p>';
-
-			return `
-    <section class="resume-section">
-      <h2>${escapeHtml(section.title)}</h2>
-      <div class="section-type">${escapeHtml(section.type)}</div>
-      ${itemsHtml}
-    </section>`;
-		})
-		.join('\n');
-
-	return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>${escapeHtml(title)}</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: 'Georgia', serif;
-      font-size: 12pt;
-      color: #111;
-      background: #fff;
-      padding: 40px 60px;
-      max-width: 820px;
-      margin: 0 auto;
-    }
-    h1.resume-title {
-      font-size: 24pt;
-      font-weight: bold;
-      border-bottom: 2px solid #333;
-      padding-bottom: 8px;
-      margin-bottom: 24px;
-    }
-    .resume-section {
-      margin-bottom: 20px;
-    }
-    .resume-section h2 {
-      font-size: 14pt;
-      font-weight: bold;
-      border-bottom: 1px solid #999;
-      padding-bottom: 4px;
-      margin-bottom: 8px;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-    .section-type {
-      font-size: 9pt;
-      color: #666;
-      margin-bottom: 6px;
-      font-style: italic;
-    }
-    ul {
-      padding-left: 20px;
-    }
-    li {
-      margin-bottom: 4px;
-      line-height: 1.5;
-    }
-    @media print {
-      body { padding: 20px 40px; }
-      .resume-section { page-break-inside: avoid; }
-    }
-  </style>
-</head>
-<body>
-  <h1 class="resume-title">${escapeHtml(title)}</h1>
-  ${sectionsHtml || '<p><em>No sections yet. Add sections to build your resume.</em></p>'}
-</body>
-</html>`;
+function drawSectionHeading(doc: PDFKit.PDFDocument, title: string) {
+	doc.moveDown(0.5);
+	doc.font('Helvetica-Bold').fontSize(11).fillColor('#000000')
+		.text(title.toUpperCase(), PAGE_MARGIN, doc.y, {
+			characterSpacing: 0.6,
+			width: TEXT_WIDTH
+		});
+	const lineY = doc.y + 2;
+	doc.moveTo(PAGE_MARGIN, lineY).lineTo(PAGE_MARGIN + TEXT_WIDTH, lineY)
+		.strokeColor('#000000').lineWidth(0.8).stroke();
+	doc.moveDown(0.35);
 }
 
 export async function resumePdfRoutes(app: FastifyInstance) {
-	// GET /resumes/:resumeId/pdf
-	app.get('/:resumeId/pdf', { preHandler: requireAuth }, async (request, reply) => {
+	const handler = async (request: any, reply: any) => {
 		const { resumeId } = request.params as { resumeId: string };
 
 		const resume = await getResumeById(request.user!.id, resumeId);
-		if (!resume) {
-			return reply.code(404).send({ error: 'Resume not found' });
-		}
+		if (!resume) return reply.code(404).send({ error: 'Resume not found' });
 
-		// Fetch sections first, then fetch items for each section in parallel
-		const sections = await listSections(resumeId);
-		const itemArrays = await Promise.all(sections.map((s) => listItems(s.id)));
-		const items = itemArrays.flat();
+		const allSections = await listSections(resumeId);
+		const sections = allSections.filter((s) => {
+			const content = (s as any).content as string | null;
+			return content && content.trim().length > 0;
+		});
 
-		const html = buildResumeHtml(resume.title, sections, items);
+		const doc = new PDFDocument({ margin: PAGE_MARGIN, size: 'LETTER' });
+		const chunks: Buffer[] = [];
+		doc.on('data', (chunk: Buffer) => chunks.push(chunk));
 
+		await new Promise<void>((resolve) => {
+			doc.on('end', resolve);
+
+			// ── Name Header ─────────────────────────────────────────────
+			doc.font('Helvetica-Bold').fontSize(22).fillColor('#000000')
+				.text(resume.title, { align: 'center' });
+			doc.moveDown(0.1);
+
+			// Thin rule under name
+			const nameRuleY = doc.y;
+			doc.moveTo(PAGE_MARGIN, nameRuleY)
+				.lineTo(PAGE_MARGIN + TEXT_WIDTH, nameRuleY)
+				.strokeColor('#000000').lineWidth(0.5).stroke();
+			doc.moveDown(0.5);
+
+			if (sections.length === 0) {
+				doc.font('Helvetica').fontSize(11).fillColor('#666666')
+					.text('No content added yet.', { align: 'center' });
+			}
+
+			// ── Sections ────────────────────────────────────────────────
+			for (const section of sections) {
+				const content = (section as any).content as string;
+
+				// Contact / Summary sections get simpler rendering
+				const titleLower = section.title.toLowerCase();
+				const isContact = titleLower.includes('contact') || titleLower.includes('header');
+
+				if (isContact) {
+					// Render contact info as a centered single line
+					const flat = content.split('\n').map((l) => l.trim()).filter(Boolean).join('  |  ');
+					doc.font('Helvetica').fontSize(9.5).fillColor('#333333')
+						.text(flat, { align: 'center' });
+					doc.moveDown(0.3);
+				} else {
+					drawSectionHeading(doc, section.title);
+					renderSectionContent(doc, content);
+				}
+			}
+
+			doc.end();
+		});
+
+		const pdfBuffer = Buffer.concat(chunks);
 		const safeTitle = resume.title.replace(/[^a-z0-9_\- ]/gi, '_');
-		reply.header('Content-Type', 'text/html; charset=utf-8');
-		reply.header('Content-Disposition', `inline; filename="${safeTitle}.pdf"`);
-		return reply.send(html);
-	});
+		reply.header('Content-Type', 'application/pdf');
+		reply.header('Content-Disposition', `attachment; filename="${safeTitle}.pdf"`);
+		reply.header('Content-Length', pdfBuffer.length);
+		return reply.send(pdfBuffer);
+	};
+
+	app.get('/:resumeId/pdf', { preHandler: requireAuth }, handler);
+	app.post('/:resumeId/pdf', { preHandler: requireAuth }, handler);
 }

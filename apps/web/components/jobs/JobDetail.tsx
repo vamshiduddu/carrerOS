@@ -64,14 +64,14 @@ export default function JobDetail({ job, onApply }: JobDetailProps) {
               <Calendar size={12} /> Posted {postedDate}
             </span>
           )}
-          {job.jobUrl && (
+          {job.url && (
             <a
-              href={job.jobUrl}
+              href={job.url}
               target="_blank"
               rel="noopener noreferrer"
               style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.82rem', color: 'var(--accent)', background: 'var(--accent-muted)', padding: '0.25rem 0.65rem', borderRadius: 999, textDecoration: 'none' }}
             >
-              <ExternalLink size={12} /> View Posting
+              <ExternalLink size={12} /> View on {job.source ?? 'Job Board'}
             </a>
           )}
         </div>

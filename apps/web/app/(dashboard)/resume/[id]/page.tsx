@@ -97,9 +97,9 @@ export default function Page() {
   async function improveWithAI(section: Section) {
     setAiLoading(section.id);
     try {
-      const result = await api.post<{ improved: string }>(`/v1/resumes/${params.id}/ai/improve-section`, {
-        sectionId: section.id,
-        content: section.content
+      const result = await api.post<{ improved: string }>(`/v1/resumes/${params.id}/ai/improve`, {
+        text: section.content,
+        instruction: `Improve this ${section.type} section`
       });
       if (result.improved) {
         const updated = sections.map(s => s.id === section.id ? { ...s, content: result.improved } : s);
@@ -187,8 +187,21 @@ export default function Page() {
             className="btn btn-secondary btn-sm"
             onClick={async () => {
               setSaving(true);
-              try { await api.post(`/v1/resumes/${params.id}/pdf`, {}); }
-              catch { setError('PDF export failed'); }
+              try {
+                const token = typeof window !== 'undefined' ? localStorage.getItem('careeros_access_token') : null;
+                const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'}/v1/resumes/${params.id}/pdf`, {
+                  method: 'GET',
+                  headers: { Authorization: `Bearer ${token}` }
+                });
+                if (!res.ok) throw new Error('PDF export failed');
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${resume?.title ?? 'resume'}.pdf`;
+                a.click();
+                URL.revokeObjectURL(url);
+              } catch { setError('PDF export failed'); }
               finally { setSaving(false); }
             }}
           >

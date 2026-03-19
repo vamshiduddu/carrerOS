@@ -16,21 +16,7 @@ export default function MobileNav() {
   const pathname = usePathname();
 
   return (
-    <nav style={{
-      position: 'fixed',
-      bottom: 0,
-      left: 0,
-      right: 0,
-      zIndex: 50,
-      background: 'rgba(255,255,255,0.95)',
-      borderTop: '1px solid var(--line-solid)',
-      backdropFilter: 'blur(12px)',
-      WebkitBackdropFilter: 'blur(12px)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-around',
-      padding: '0.5rem 0'
-    }}>
+    <nav className="mobile-nav">
       {nav.map((item) => {
         const Icon = item.icon;
         const active = item.href === '/dashboard'

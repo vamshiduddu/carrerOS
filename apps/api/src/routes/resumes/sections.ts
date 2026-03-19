@@ -6,11 +6,13 @@ import { getResumeById, listSections, createSection, updateSection, deleteSectio
 const createSectionSchema = z.object({
 	type: z.string().min(1),
 	title: z.string().min(1),
+	content: z.string().optional(),
 	sortOrder: z.number().int().optional()
 });
 
 const updateSectionSchema = z.object({
 	title: z.string().min(1).optional(),
+	content: z.string().optional(),
 	sortOrder: z.number().int().optional()
 });
 
@@ -46,7 +48,20 @@ export async function resumeSectionRoutes(app: FastifyInstance) {
 		}
 	});
 
-	// PUT /resumes/:resumeId/sections/:sectionId
+	// PUT/PATCH /resumes/:resumeId/sections/:sectionId
+	app.patch('/:resumeId/sections/:sectionId', { preHandler: requireAuth }, async (request, reply) => {
+		const { resumeId, sectionId } = request.params as { resumeId: string; sectionId: string };
+		const resume = await getResumeById(request.user!.id, resumeId);
+		if (!resume) return reply.code(404).send({ error: 'Resume not found' });
+		try {
+			const body = updateSectionSchema.parse(request.body);
+			const updated = await updateSection(sectionId, body);
+			return reply.send(updated);
+		} catch {
+			return reply.code(400).send({ error: 'Invalid section payload' });
+		}
+	});
+
 	app.put('/:resumeId/sections/:sectionId', { preHandler: requireAuth }, async (request, reply) => {
 		const { resumeId, sectionId } = request.params as { resumeId: string; sectionId: string };
 
