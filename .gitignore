@@ -42,3 +42,5 @@ Thumbs.db
 .cache/
 .eslintcache
 apps/web/.next/
+.env.vercel.web
+.env.vercel.api
