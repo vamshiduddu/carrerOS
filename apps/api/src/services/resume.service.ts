@@ -96,7 +96,8 @@ export async function createItem(
 			resumeId,
 			sectionId,
 			sortOrder: data.sortOrder ?? 0,
-			...(data.content ? { content: data.content } : {})
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			...(data.content ? { content: data.content as any } : {})
 		}
 	});
 }
@@ -104,7 +105,8 @@ export async function createItem(
 export async function updateItem(itemId: string, data: { sortOrder?: number; content?: Record<string, unknown> }) {
 	return prisma.resumeItem.update({
 		where: { id: itemId },
-		data
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		data: { ...data, ...(data.content ? { content: data.content as any } : {}) }
 	});
 }
 
