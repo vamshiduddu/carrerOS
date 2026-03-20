@@ -1,4 +1,5 @@
 ﻿import cors from '@fastify/cors';
+import websocket from '@fastify/websocket';
 import Fastify from 'fastify';
 import { env } from './config/env';
 import { registerRoutes } from './routes';
@@ -11,6 +12,8 @@ export async function buildApp() {
 		.split(',')
 		.map((o) => o.trim().replace(/\/$/, ''))
 		.filter(Boolean);
+
+	await app.register(websocket);
 
 	await app.register(cors, {
 		origin: isDev || allowedOrigins.length === 0

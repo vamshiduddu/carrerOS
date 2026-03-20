@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>CareerOS Overlay</title>
+  <link rel="stylesheet" href="./overlay.css" />
+</head>
+<body>
+<div class="overlay-root" id="root">
+
+  <!-- Drag handle + controls -->
+  <div class="drag-bar" id="dragBar">
+    <div class="drag-logo">
+      <span class="dot"></span>CareerOS
+    </div>
+    <div class="drag-actions">
+      <span id="statusChip" class="chip chip-idle">Idle</span>
+      <button class="ov-btn" id="closeBtn">✕</button>
+    </div>
+  </div>
+
+  <!-- Question -->
+  <div class="section" id="questionSection" style="display:none;">
+    <div class="section-label">QUESTION DETECTED</div>
+    <div class="question-text" id="questionText"></div>
+  </div>
+
+  <!-- Processing state -->
+  <div class="processing" id="processingState" style="display:none;">
+    <div class="thinking"><span></span><span></span><span></span></div>
+    <span>Generating answer...</span>
+  </div>
+
+  <!-- Answer -->
+  <div class="section" id="answerSection" style="display:none;">
+    <div class="section-label">AI ANSWER</div>
+    <div class="answer-text" id="answerText"></div>
+  </div>
+
+  <!-- Idle state -->
+  <div class="idle-state" id="idleState">
+    <div class="idle-icon">🎯</div>
+    <div class="idle-text">Waiting for session to start</div>
+    <div class="idle-hint">Invisible to screen share</div>
+  </div>
+
+</div>
+<script src="./overlay.js"></script>
+</body>
+</html>

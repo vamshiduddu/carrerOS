@@ -19,7 +19,8 @@ const envSchema = z.object({
 	AZURE_OPENAI_API_KEY: z.string().optional(),
 	NVIDIA_API_KEY: z.string().optional(),
 	RESEND_API_KEY: z.string().optional(),
-	RESEND_FROM: z.string().optional()
+	RESEND_FROM: z.string().optional(),
+	DEEPGRAM_API_KEY: z.string().optional()
 });
 
 export const env = envSchema.parse(process.env);

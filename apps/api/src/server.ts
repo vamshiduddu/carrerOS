@@ -1,3 +1,16 @@
+// Load .env.local from monorepo root if env vars are not already set
+import fs from 'node:fs';
+import path from 'node:path';
+const envFile = path.join(__dirname, '../../../.env.local');
+if (fs.existsSync(envFile)) {
+	fs.readFileSync(envFile, 'utf8').split('\n').forEach((line) => {
+		const [key, ...rest] = line.trim().split('=');
+		if (key && !key.startsWith('#') && !(key in process.env)) {
+			process.env[key] = rest.join('=').trim();
+		}
+	});
+}
+
 import { buildApp } from './app';
 import { env } from './config/env';
 import { setupSockets } from './sockets';

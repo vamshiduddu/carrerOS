@@ -8,6 +8,7 @@ import { jobRoutes } from './jobs';
 import { mockRoutes } from './mock';
 import { notificationRoutes } from './notifications';
 import { resumeRoutes } from './resumes';
+import { transcribeRoutes } from './transcribe';
 import { userRoutes } from './users';
 
 export async function registerRoutes(app: FastifyInstance) {
@@ -21,5 +22,6 @@ export async function registerRoutes(app: FastifyInstance) {
 	await app.register(mockRoutes, { prefix: '/v1/mock' });
 	await app.register(billingRoutes, { prefix: '/v1/billing' });
 	await app.register(notificationRoutes, { prefix: '/v1/notifications' });
+	await app.register(transcribeRoutes, { prefix: '/v1/transcribe' });
 }
 
